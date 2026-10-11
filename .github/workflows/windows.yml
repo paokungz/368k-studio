@@ -1,0 +1,26 @@
+name: Windows tests and public build
+on:
+  push:
+    branches: [main]
+  pull_request:
+permissions:
+  contents: read
+jobs:
+  test-and-build:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Build without private firmware
+        shell: pwsh
+        run: |
+          python tools/check_public.py
+          if ($LASTEXITCODE -ne 0) { throw 'Publication checks failed' }
+          ./build.ps1
+      - uses: actions/upload-artifact@v4
+        with:
+          name: 368K-Studio-Public-Windows
+          path: dist/368K Studio Public.exe
+          if-no-files-found: error
