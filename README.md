@@ -1,4 +1,4 @@
-# 368K Studio — Public Source Edition
+# 368K Studio
 
 โปรแกรม Windows สำหรับออกแบบธีม **Sport แบบกลางคืนของ ZONTES 368K** บนคอม แปลงรูป ตรวจไฟล์ Launcher แล้วติดตั้งหรือคืนค่าผ่าน Wi-Fi รถ มี UI ภาษาไทยและตัวอย่างหน้าปัด 1024 × 600
 
