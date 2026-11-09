@@ -4,11 +4,13 @@
 
 ![Artist Mode](docs/artist-preview.png)
 
+ใน Artist Mode กด **รูปไหนคือส่วนไหน** เพื่อดูภาพย่อ หน้าที่ ชื่อ PNG และขนาดของแต่ละส่วน หน้าแรกเริ่มจาก Sport night โรงงาน โดยยังไม่เปิดการแก้ไขส่วนใด
+
 โปรแกรม Windows สำหรับออกแบบธีม **Sport แบบกลางคืนของ ZONTES 368K** บนคอม แปลงรูป ตรวจไฟล์ Launcher แล้วติดตั้งหรือคืนค่าผ่าน Wi-Fi รถ มี UI ภาษาไทยและตัวอย่างหน้าปัด 1024 × 600
 
 **รองรับเฉพาะ firmware ที่ SHA-256 ตรงกับชุดที่ระบุด้านล่าง** ชื่อรุ่น 368K เหมือนกันไม่ได้หมายความว่า firmware ตรงกัน โปรแกรมเป็นงานทดลองของผู้ใช้ ไม่ได้เป็นผลิตภัณฑ์หรือเครื่องมืออย่างเป็นทางการของผู้ผลิตรถ
 
-Repository นี้เผยแพร่ **โค้ด คู่มือ และภาพตัวอย่างทรงเรขาคณิตที่สร้างใหม่** สำเนา Launcher, boot partition, ภาพ/ฟอนต์ที่ดึงจากรถ และรูปส่วนตัวของผู้ใช้ต้องอยู่บนคอมของผู้ใช้เอง ไม่ได้แนบใน GitHub หรือ EXE ที่ build จาก repository นี้
+Repository นี้เผยแพร่ **โค้ด คู่มือ ภาพตัวอย่างที่สร้างใหม่ และ PNG อ้างอิงหน้า Sport โรงงาน 66 ไฟล์** สำหรับ Artist Mode ตามคำขอเจ้าของรถ โดยแยกไว้ใน `docs/artist/factory` พร้อมขนาดและ SHA สำเนา Launcher, boot partition, ฟอนต์ และรูปส่วนตัวของผู้ใช้ไม่ได้แนบใน GitHub หรือ EXE ที่ build จาก repository นี้ ดู [ขอบเขตไฟล์ภาพโรงงาน](docs/artist/factory/README.md)
 
 ![หน้าจอโปรแกรมเมื่อยังไม่ได้เตรียมสำเนาต้นฉบับ](docs/public-setup.png)
 
@@ -165,9 +167,9 @@ powershell -ExecutionPolicy Bypass -File .\build.ps1
 
 ได้ `dist\368K Studio Public.exe` ซึ่งรวมโค้ด web UI, Artist Mode และภาพตัวอย่างที่สร้างใหม่ Artist Mode ใช้ได้ทันที ส่วนการสร้าง Launcher/boot และติดตั้งต้องเตรียมชุดส่วนตัวบนเครื่องปลายทางก่อน
 
-ชุด public tests 11 ชุดรันได้โดยไม่มี firmware ส่วน integration tests 12 ชุดใช้สำเนาส่วนตัวและ mock Telnet ไม่เชื่อมรถ ถ้าไม่มีสำเนาต้นฉบับจะรายงาน `skipped` อย่างชัดเจน Artist Mode มี model tests และ browser tests เพิ่มเติมตาม [คู่มือ](docs/ARTIST_MODE.md) การผ่าน tests ไม่เท่ากับผ่านการติดตั้งบนรถทุกเวอร์ชัน
+ชุด public tests 12 ชุดรันได้โดยไม่มี firmware ส่วน integration tests 12 ชุดใช้สำเนาส่วนตัวและ mock Telnet ไม่เชื่อมรถ ถ้าไม่มีสำเนาต้นฉบับจะรายงาน `skipped` อย่างชัดเจน Artist Mode มี model tests และ browser tests เพิ่มเติมตาม [คู่มือ](docs/ARTIST_MODE.md) การผ่าน tests ไม่เท่ากับผ่านการติดตั้งบนรถทุกเวอร์ชัน
 
-GitHub Actions ทดสอบและ build EXE บน Windows ในแต่ละ push ดาวน์โหลด build ได้จากแท็บ **Actions → run ที่สำเร็จ → Artifacts** (ต้อง login GitHub) ชุด build นี้ไม่มี firmware/ภาพจากรถแนบมา
+GitHub Actions ทดสอบและ build EXE บน Windows ในแต่ละ push ดาวน์โหลด build ได้จากแท็บ **Actions → run ที่สำเร็จ → Artifacts** (ต้อง login GitHub) ชุด build มี PNG อ้างอิงโรงงานสำหรับ Artist Mode แต่ไม่มี firmware, ฟอนต์ หรือภาพส่วนตัวแนบมา
 
 ## สำหรับผู้พัฒนา
 
@@ -184,4 +186,4 @@ GitHub Actions ทดสอบและ build EXE บน Windows ในแต่
 
 ตัวโปรแกรมเก็บ session, project, jobs และ log ที่ `%LOCALAPPDATA%\368KStudio-public` ส่วนชุดต้นฉบับอยู่ภายนอก repository เสมอ `.gitignore` เป็นชั้นป้องกันเพิ่มเติม ไม่ควรใช้ `git add -f` กับ firmware/exports/session
 
-Source code และภาพตัวอย่างที่สร้างใหม่ใช้ [MIT License](LICENSE) สิทธิ์นี้ไม่ครอบคลุม firmware, ฟอนต์, resource ของผู้ผลิต หรือภาพที่ผู้ใช้นำเข้า
+Source code และภาพตัวอย่างที่สร้างใหม่ใช้ [MIT License](LICENSE) สิทธิ์นี้ไม่ครอบคลุม firmware, ฟอนต์, PNG/resource ของผู้ผลิต หรือภาพที่ผู้ใช้นำเข้า

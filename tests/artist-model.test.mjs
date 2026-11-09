@@ -5,6 +5,8 @@ import {PARTS,SIZES,defaultConfig,normalizeConfig,validateEnvelope,canonicalTemp
 test('same nine component keys and 46 allowed paths as Studio',()=>{
   assert.equal(Object.keys(PARTS).length,9);assert.equal(Object.keys(SIZES).length,46);
   assert.deepEqual(SIZES['/res/Other/dark/sport/bg0_1.png'],[468,518]);
+  assert.deepEqual(SIZES['/res_sport/SPORT_NIGHT_SPEED_km_h.png'],[44,15]);
+  assert.deepEqual(SIZES['/res_sport/SPORT_NIGHT_RPM_NUM_BIG_0.png'],[31,28]);
 });
 test('color transformation preserves alpha, transparent RGB and red pixels',()=>{
   const input=new Uint8ClampedArray([255,255,255,180,240,20,5,255,45,80,99,0,90,120,180,127]);

@@ -1,33 +1,8 @@
-import {PARTS,SIZES,transformPixels,fitRect} from './model.mjs';
+import {PARTS,transformPixels,fitRect} from './model.mjs';
+import {FACTORY_ASSETS} from './factory.mjs';
 export function canvas(w,h){const c=document.createElement('canvas');c.width=w;c.height=h;return c;}
 function label(ctx,value,x,y,size=24,color='#ecf6fc',align='left'){ctx.fillStyle=color;ctx.font=`600 ${size}px system-ui, sans-serif`;ctx.textAlign=align;ctx.fillText(value,x,y);}
 function rounded(ctx,x,y,w,h,r,fill,stroke){ctx.beginPath();ctx.roundRect(x,y,w,h,r);if(fill){ctx.fillStyle=fill;ctx.fill();}if(stroke){ctx.strokeStyle=stroke;ctx.lineWidth=2;ctx.stroke();}}
-/** Original, code-drawn placeholders. No manufacturer's PNG/font is shipped. */
-export function concept(path){
-  const [w,h]=SIZES[path],c=canvas(w,h),x=c.getContext('2d');
-  if(/BG_\d+\.png$/.test(path)){
-    const g=x.createLinearGradient(0,0,w,h);g.addColorStop(0,'#07151f');g.addColorStop(.5,'#183c46');g.addColorStop(1,'#101e29');x.fillStyle=g;x.fillRect(0,0,w,h);
-    x.strokeStyle='#2c5564';x.lineWidth=1;for(let n=-600;n<1600;n+=100){x.beginPath();x.moveTo(n,0);x.lineTo(n+600,h);x.stroke();}
-  }else if(/bg0(?:_1)?\.png$/.test(path)){
-    x.beginPath();x.arc(w/2,h/2,202,0,Math.PI*2);x.arc(w/2,h/2,174,0,Math.PI*2,true);x.fillStyle='rgba(155,192,208,.35)';x.fill('evenodd');
-    x.strokeStyle='#759ba9';x.lineWidth=2;x.beginPath();x.arc(w/2,h/2,202,0,Math.PI*2);x.stroke();
-  }else if(/BG_(LEFT|RIGHT)_3/.test(path)){
-    rounded(x,9,8,w-18,h-16,18,'rgba(70,100,114,.45)','#557c8f');
-  }else if(path.includes('GEAR_bg'))rounded(x,2,4,w-4,h-8,20,'rgba(85,123,140,.6)','#7196a5');
-  else if(path.includes('BG_sport')){const g=x.createLinearGradient(0,0,w,0);g.addColorStop(0,'rgba(70,135,170,0)');g.addColorStop(.5,'rgba(120,185,210,.45)');g.addColorStop(1,'rgba(70,135,170,0)');x.fillStyle=g;x.fillRect(0,30,w,22);}
-  else if(/SPEED_\d/.test(path))label(x,path.match(/SPEED_(\d)/)[1],w/2,119,105,'#f4faff','center');
-  else if(/SPEED_(km_h|mph)/.test(path))label(x,path.includes('km_h')?'km/h':'mph',w/2,80,22,'#f4faff','center');
-  else if(path.includes('SPEED_deco')){x.fillStyle='#d8f2ff';x.fillRect(8,h-22,w-16,3);}
-  else if(/RPM_NUM_(BIG|SMALL)_\d/.test(path))label(x,path.match(/_(\d)\.png/)[1],w/2,24,24,'#ecf6fc','center');
-  else if(path.includes('RPM_NUM_unit'))label(x,'rpm',w/2,20,12,'#ecf6fc','center');
-  else {
-    x.strokeStyle='#b9def2';x.lineWidth=path.includes('bar_normal')?12:3;
-    if(path.includes('kedu')){for(let n=0;n<61;n++){const a=(130+n*280/60)*Math.PI/180;x.strokeStyle=n>45?'#ef5d36':'#b9def2';x.beginPath();x.moveTo(w/2+Math.cos(a)*165,h/2+Math.sin(a)*165);x.lineTo(w/2+Math.cos(a)*(n%5===0?153:158),h/2+Math.sin(a)*(n%5===0?153:158));x.stroke();}}
-    else if(path.includes('pointer')){x.beginPath();x.moveTo(w/2-6,h/2+186);x.lineTo(w/2+7,h/2+186);x.lineTo(w/2,h/2+156);x.closePath();x.fillStyle='#d6f4ff';x.fill();}
-    else {x.beginPath();x.arc(w/2,h/2,188,Math.PI*.72,Math.PI*2.28);x.stroke();}
-  }
-  return c;
-}
 export function transformed(source,option,part,image){
   const c=canvas(source.width||source.naturalWidth,source.height||source.naturalHeight),x=c.getContext('2d',{willReadFrequently:true});x.drawImage(source,0,0);
   const original=x.getImageData(0,0,c.width,c.height);
@@ -47,27 +22,45 @@ export function transformed(source,option,part,image){
   x.putImageData(next,0,0);return c;
 }
 export function renderer(target){
-  const stock=new Map(Object.keys(SIZES).map(path=>[path,concept(path)])),cache=new Map();
+  const stock=new Map(),cache=new Map();
+  const ready=Promise.all(Object.entries(FACTORY_ASSETS).map(async([path,info])=>{
+    const image=await new Promise((resolve,reject)=>{const im=new Image();im.onload=()=>resolve(im);im.onerror=()=>reject(Error('โหลด PNG โรงงานไม่สำเร็จ: '+path));im.src=new URL('./factory'+path,import.meta.url).href;});
+    if(image.naturalWidth!==info.size[0]||image.naturalHeight!==info.size[1])throw Error('ขนาด PNG โรงงานไม่ตรง: '+path);
+    const copy=canvas(...info.size);copy.getContext('2d').drawImage(image,0,0);stock.set(path,copy);
+  }));
   let state;
   function get(path,original=false){
-    const source=state.templates.get(path)?.image||stock.get(path),key=Object.keys(PARTS).find(k=>PARTS[k].paths.includes(path));
-    const option=state.config.parts[key];if(original||!option.enabled)return source;
+    const source=(!original&&state.templates.get(path)?.image)||stock.get(path),key=Object.keys(PARTS).find(k=>PARTS[k].paths.includes(path));
+    if(!source)throw Error('ไม่พบชิ้นภาพ '+path);
+    const option=state.config.parts[key];if(original||!option?.enabled)return source;
     if(!cache.has(path))cache.set(path,transformed(source,option,PARTS[key],state.images.get(option.image)?.image));
     return cache.get(path);
   }
   function render(next){
     state=next;const x=target.getContext('2d');x.clearRect(0,0,1024,600);x.fillStyle='#08121a';x.fillRect(0,0,1024,600);
+    const sport=n=>'/res_sport/SPORT_NIGHT_'+n+'.png',common=n=>'/res/Other/dark/sport/'+n+'.png';
+    const draw=(path,a,b)=>x.drawImage(get(path,next.original),a,b);
     for(const key of ['wallpaper','left','right','glow','gear','ring']){const p=PARTS[key];x.drawImage(get(key==='wallpaper'?p.paths.at(-1):p.paths[0],next.original),...p.at);}
-    for(const name of ['deco','kedu','pointer'])x.drawImage(get(`/res/Other/dark/sport/${name}.png`,next.original),289,38);
-    const center=[524,297];for(let n=0;n<=10;n++){const a=(130+n*28)*Math.PI/180,px=center[0]+Math.cos(a)*143,py=center[1]+Math.sin(a)*143;if(n<8)x.drawImage(get(`/res_sport/SPORT_NIGHT_RPM_NUM_BIG_${n}.png`,next.original),px-17,py-14);else label(x,String(n),px,py+10,24,'#f17845','center');}
-    if(next.rpm>0){x.save();x.strokeStyle=next.original||!next.config.parts.rpm_accent.enabled?'#b9def2':next.config.parts.rpm_accent.color;x.lineWidth=9;x.beginPath();x.arc(...center,195,Math.PI*.72,Math.PI*.72+next.rpm/7000*Math.PI*1.12);x.stroke();x.restore();}
-    const digits=String(next.speed);let px=524-digits.length*35;for(const d of digits){x.drawImage(get(`/res_sport/SPORT_NIGHT_SPEED_${d}.png`,next.original),px,213);px+=70;}
-    x.drawImage(get('/res_sport/SPORT_NIGHT_SPEED_km_h.png',next.original),489,315);
-    label(x,'16:54',772,67,28);label(x,'S',512,565,35,'#f2f8fc','center');label(x,'ODO 0000 km',512,593,21,'#ecf6fc','center');
-    label(x,'TIRE / PSI',37,198,15,'#a8c4d0');label(x,'F    33.1',38,246,26);label(x,'R   39.5',38,308,26);label(x,'36°C   /   47°C',38,353,17);label(x,'13.3 V',38,431,24);
-    for(const [base,letter,low,col,fraction]of [[814,'F','E','#a7e455',.8],[935,'H','C','#4ec8f5',.3]]){label(x,letter,base,190,19);label(x,low,base,444,19);rounded(x,base,210,18,200,8,'#152d3a','#7594a1');for(let n=0;n<8;n++){x.fillStyle=n>=8*fraction?'#294351':col;x.fillRect(base+3,215+(7-n)*23,12,19);}}
-    label(x,'KEY',34,558,17,'#a8e452');label(x,'ABS',233,558,18,'#ffd15e');label(x,'OIL',815,558,18,'#ff8456');label(x,'ENGINE',913,558,17,'#ffd15e');
-    if(next.guides){const p=PARTS[next.selected];if(p.at){x.strokeStyle='#bcdfba';x.lineWidth=2;x.setLineDash([8,6]);x.strokeRect(...p.at,...p.size);x.setLineDash([]);}}
+    if(next.rpm>0){x.save();x.beginPath();x.moveTo(524,282);x.arc(524,282,290,Math.PI*.55,Math.PI*.55+next.rpm/7000*Math.PI);x.closePath();x.clip();draw(common('bar_normal'),289,38);x.restore();}
+    for(const name of ['deco','bg1','bar_warn','kedu','pointer'])draw(common(name),289,38);
+    const coords=[[508,449],[393,427],[350,368],[351,300],[371,231],[414,173],[465,143],[524,143],[583,173],[633,231],[650,306]];
+    coords.forEach(([a,b],n)=>draw(sport('RPM_NUM_BIG_'+(n>=8?'10000_':'')+n),a,b));
+    const digits=String(next.speed);let px=524-digits.length*35;for(const d of digits){draw(sport('SPEED_'+d),px,245);px+=70;}
+    draw(sport('SPEED_deco'),441,374);draw(sport('SPEED_km_h'),492,397);draw(sport('RPM_NUM_unit'),649,343);
+    for(const [name,a,b]of [['WAF_OIL_bg',836,188],['WAF_OIL_normal_bar',814,191],['WAF_OIL_F',836,167],['WAF_OIL_E',816,431],['WAF_OIL_icon',863,382],['WAF_WATER_bg',949,188]])draw(sport(name),a,b);
+    x.save();x.beginPath();x.rect(900,367,90,55);x.clip();draw(sport('WAF_WATER_normal_bar'),930,191);x.restore();
+    for(const [name,a,b]of [['WAF_WATER_red_bar_7',930,191],['WAF_WATER_H',949,167],['WAF_WATER_C',927,431],['WAF_WATER_icon',979,384],['TIRE_Wheel',80,171],['TIRE_F_Wheel_green',205,220],['TIRE_BODY',198,252],['TIRE_R_Wheel_green',205,332]])draw(sport(name),a,b);
+    for(const [value,a,b,size]of [['psi',124,195,23],['°C',124,221,23],['F',85,251,22],['33.1',119,256,28],['36',119,291,28],['R',85,338,22],['39.5',119,339,28],['47',119,373,28],['13.3',109,443,30],['v',182,443,17],['16:54',725,65,31]])label(x,value,a,b,size);
+    label(x,'S',510,557,49,'#fff','center');label(x,'ODO 0000 km',511,588,28,'#fff','center');
+    factoryWarnings(x);
+    if(next.guides){const p=PARTS[next.selected],at=p.at||({speed:[450,240],rpm_numbers:[325,100],rpm_accent:[289,38]}[next.selected]),size=p.at?p.size:({speed:[210,162],rpm_numbers:[390,410],rpm_accent:[470,518]}[next.selected]);x.strokeStyle='#bcdfba';x.lineWidth=2;x.setLineDash([8,6]);x.strokeRect(...at,...size);x.setLineDash([]);}
   }
-  return {render,get,clear:()=>cache.clear(),stock};
+  return {render,get,ready,clear:()=>cache.clear(),stock};
+}
+function factoryWarnings(x){
+  const stroke=(points,color,width=3)=>{x.strokeStyle=color;x.lineWidth=width;x.beginPath();points.forEach(([a,b],i)=>i?x.lineTo(a,b):x.moveTo(a,b));x.stroke();};
+  x.save();x.strokeStyle='#99f500';x.lineWidth=5;x.beginPath();x.arc(40,546,8,0,Math.PI*2);x.stroke();stroke([[33,546],[14,546],[14,552],[23,552],[23,547]],'#99f500',5);
+  x.strokeStyle='#ffd100';x.lineWidth=3;x.beginPath();x.arc(252,546,18,0,Math.PI*2);x.stroke();label(x,'ABS',252,551,13,'#ffd100','center');
+  stroke([[799,535],[819,535],[824,540],[848,536],[840,550],[821,550],[815,542],[799,542],[799,535]],'#ff792b');stroke([[808,534],[808,529],[822,529]],'#ff792b');
+  stroke([[910,534],[920,534],[920,530],[934,530],[934,534],[941,534],[945,540],[953,540],[953,553],[945,553],[942,560],[919,560],[917,554],[910,554],[910,534]],'#ffd100');x.restore();
 }

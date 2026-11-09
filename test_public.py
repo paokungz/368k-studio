@@ -70,7 +70,7 @@ class PublicTests(unittest.TestCase):
             try:
                 with urllib.request.urlopen(base+'/artist') as response:
                     self.assertTrue(response.url.endswith('/artist/'));self.assertIn(b'Artist Mode',response.read())
-                for name in ('artist.mjs','canvas.mjs','model.mjs','style.css'):
+                for name in ('artist.mjs','canvas.mjs','model.mjs','factory.mjs','style.css','factory/res_sport/SPORT_NIGHT_BG_24.png'):
                     with urllib.request.urlopen(base+'/artist/'+name) as response:self.assertEqual(response.status,200)
                 request=urllib.request.Request(base+'/api/device/install',data=b'{"parked":true}',headers={'X-Studio-Token':app.token,'Content-Type':'application/json'})
                 with mock.patch.object(device,'Session',side_effect=AssertionError('No device connection allowed')),self.assertLogs(level='ERROR'):
@@ -79,4 +79,15 @@ class PublicTests(unittest.TestCase):
                 with self.assertRaises(urllib.error.HTTPError) as error:urllib.request.urlopen(base+'/artist/../server.py')
                 self.assertEqual(error.exception.code,400)
             finally:http.shutdown();http.server_close();thread.join(timeout=2);core.stock.cache_clear()
+
+    def test_factory_png_manifest_matches_exact_visual_files(self):
+        import hashlib
+        folder=core.BASE/'docs/artist';text=(folder/'factory.mjs').read_text()
+        assets=json.loads(text.split('export const FACTORY_ASSETS = ',1)[1].rsplit(';',1)[0])
+        self.assertIn(core.STOCK_SHA,text);self.assertEqual(len(assets),66)
+        for path,record in assets.items():
+            file=folder/'factory'/path.lstrip('/');data=file.read_bytes()
+            self.assertEqual(hashlib.sha256(data).hexdigest(),record['sha256'])
+            with Image.open(io.BytesIO(data)) as image:self.assertEqual(list(image.size),record['size']);self.assertEqual(image.format,'PNG')
+        self.assertEqual(len(list((folder/'factory').rglob('*.png'))),len(assets))
 if __name__=='__main__':unittest.main()

@@ -8,8 +8,9 @@ async function main(){
   const server=http.createServer(async(req,res)=>{
     const p=new URL(req.url,'http://localhost').pathname.replace(/^\/368k-studio\//,'');
     const name=!p||p==='/'?'index.html':p;
-    if(!['index.html','artist.mjs','model.mjs','canvas.mjs','style.css'].includes(name)){res.writeHead(404);return res.end();}
-    res.setHeader('Content-Type',name.endsWith('.mjs')?'text/javascript':name.endsWith('.css')?'text/css':'text/html');res.end(await fs.readFile(path.join(root,name)));
+    const isFactory=name.startsWith('factory/')&&name.endsWith('.png')&&!name.includes('..')&&!name.includes('\\');
+    if(!['index.html','artist.mjs','model.mjs','canvas.mjs','factory.mjs','style.css'].includes(name)&&!isFactory){res.writeHead(404);return res.end();}
+    res.setHeader('Content-Type',name.endsWith('.mjs')?'text/javascript':name.endsWith('.css')?'text/css':name.endsWith('.png')?'image/png':'text/html');res.end(await fs.readFile(path.join(root,name)));
   });await new Promise(r=>server.listen(0,'127.0.0.1',r));
   const url=process.env.ARTIST_TEST_URL||`http://127.0.0.1:${server.address().port}/368k-studio/`;
   const browser=await chromium.launch({headless:true,...(process.platform==='win32'?{channel:'msedge'}:{})});
@@ -26,7 +27,9 @@ async function main(){
     }),0);
     async function ready(){await page.waitForFunction(()=>!document.querySelector('#save-project').disabled);}
     async function download(button){const event=page.waitForEvent('download');await page.locator(button).click();const d=await event;const file=await d.path();await ready();return fs.readFile(file);}
-    const initial=JSON.parse(await download('#save-project'));assert.equal(initial.application,'368K Studio');assert.equal(Object.keys(initial.config.parts).length,9);assert.equal(Object.keys(initial.images).length,1);
+    const initial=JSON.parse(await download('#save-project'));assert.equal(initial.application,'368K Studio');assert.equal(Object.keys(initial.config.parts).length,9);assert.equal(Object.keys(initial.images).length,0);assert.equal(Object.values(initial.config.parts).every(p=>p.enabled===false),true);assert.equal(initial.artist.previewBasis,'factory-png-reference');assert.equal(await page.locator('#sample-speed').inputValue(),'0');assert.equal(await page.locator('#sample-rpm').inputValue(),'0');
+    const factoryPixel=await page.evaluate(()=>[...document.querySelector('#dashboard').getContext('2d').getImageData(600,300,1,1).data]);assert.ok(factoryPixel[2]>factoryPixel[0]*1.3);
+    await page.locator('#components-open').click();assert.equal(await page.locator('.component-card').count(),9);await page.screenshot({path:path.join(output,'artist-component-map.png'),fullPage:true});await page.locator('[data-component="left"]').click();assert.match(await page.locator('#part-description').textContent(),/แผงสีน้ำเงินด้านซ้าย/);assert.equal(await page.locator('#guides').isChecked(),true);assert.equal(await page.locator('#part-files .file-row').count(),1);assert.match(await page.locator('#part-files').textContent(),/SPORT_NIGHT_BG_LEFT_3/);await page.locator('[data-part="wallpaper"]').click();
     const png=Buffer.from(await page.evaluate(()=>{const c=document.createElement('canvas');c.width=600;c.height=300;const x=c.getContext('2d');x.fillStyle='#ff6a8e';x.fillRect(0,0,300,300);x.fillStyle='#536af2';x.fillRect(300,0,300,300);return c.toDataURL().split(',')[1];}),'base64');
     await page.locator('#image-file').setInputFiles({name:'artist-wallpaper.png',mimeType:'image/png',buffer:png});await ready();await page.waitForFunction(()=>document.querySelector('#image-name').textContent==='artist-wallpaper.png');
     await page.locator('[data-part="speed"]').click();assert.equal(await page.locator('#image-mode').isDisabled(),true);assert.equal(await page.locator('#opacity').isDisabled(),true);
@@ -42,20 +45,22 @@ async function main(){
     const ringDir=path.join(templateDir,'res/Other/dark/sport');await fs.mkdir(ringDir,{recursive:true});
     const ring=Buffer.from(await page.evaluate(()=>{const c=document.createElement('canvas');c.width=470;c.height=518;const x=c.getContext('2d');x.fillStyle='rgb(20,160,100)';x.fillRect(0,0,24,24);return c.toDataURL().split(',')[1];}),'base64');
     await fs.writeFile(path.join(ringDir,'bg0.png'),ring);await page.locator('#template-files').setInputFiles(templateDir);await ready();assert.match(await page.locator('#template-status').textContent(),/2 ชิ้น/);
-    await page.waitForFunction(()=>{const p=document.querySelector('#dashboard').getContext('2d').getImageData(290,39,1,1).data;return p[0]===20&&p[1]===160&&p[2]===100;});
+    await page.locator('#guides').uncheck();await page.waitForFunction(()=>{const p=document.querySelector('#dashboard').getContext('2d').getImageData(290,39,1,1).data;return p[0]===20&&p[1]===160&&p[2]===100;});
     await page.locator('[data-part="left"]').click();await page.locator('#color-mode').click();await page.locator('#hex').fill('#afafaf');await page.locator('#hex').dispatchEvent('input');await page.locator('#opacity').fill('45');await page.locator('#opacity').dispatchEvent('input');
     const withTemplates=await download('#save-project');assert.equal(Object.keys(JSON.parse(withTemplates).artist.templateImages).length,2);await fs.writeFile(path.join(temp,'project-with-templates.json'),withTemplates);
     await page.locator('#project-file').setInputFiles({name:'project.json',mimeType:'application/json',buffer:withTemplates});await ready();assert.deepEqual(JSON.parse(await download('#save-project')),JSON.parse(withTemplates));
     const designZip=await download('#export-layers');await fs.writeFile(path.join(temp,'design.zip'),designZip);assert.equal(designZip.readUInt32LE(0),0x04034b50);
     const sampleZip=await download('#sample-templates');await fs.writeFile(path.join(temp,'templates.zip'),sampleZip);
     const preview=await download('#export-preview');assert.equal(preview.subarray(1,4).toString(),'PNG');
+    await page.locator('#compare').click();assert.equal(await page.locator('#compare').getAttribute('aria-pressed'),'true');await page.locator('#compare').click();
     await page.locator('[data-part="speed"]').click();await page.locator('#hex').fill('nothex');await page.locator('#hex').dispatchEvent('input');assert.equal(await page.locator('#export-layers').isDisabled(),true);await page.locator('#hex').fill('#38bdf8');await page.locator('#hex').dispatchEvent('input');
     await page.locator('[data-part="wallpaper"]').click();await page.locator('#image-file').setInputFiles({name:'bad.svg',mimeType:'image/svg+xml',buffer:Buffer.from('<svg onload="window.bad=1"></svg>')});await ready();assert.equal(await page.evaluate(()=>window.bad),undefined);assert.match(await page.locator('#notice').textContent(),/ไม่รองรับ SVG/);
     await page.locator('#sample-speed').fill('120');await page.locator('#sample-speed').dispatchEvent('input');await page.locator('#sample-rpm').fill('6500');await page.locator('#sample-rpm').dispatchEvent('input');
     await page.screenshot({path:path.join(output,'artist-desktop.png'),fullPage:true});
     await page.setViewportSize({width:390,height:844});await page.waitForTimeout(150);assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true);await page.screenshot({path:path.join(output,'artist-mobile.png'),fullPage:true});
     assert.deepEqual(errors,[]);assert.equal(requests.filter(u=>/^https?:/.test(u)).some(u=>u.includes('/api/')||!u.startsWith(url)),false);
-    console.log(JSON.stringify({status:'PASS',checks:['9 components','image upload','color-only guards','project roundtrip','malformed project preserves current work','private template folder and project roundtrip','PNG/ZIP exports','invalid HEX blocks export','SVG rejected','responsive layout','no API/external requests'],artifacts:temp}));
+    await page.locator('#reset').click();await ready();const reset=JSON.parse(await download('#save-project'));assert.equal(Object.values(reset.config.parts).every(p=>!p.enabled),true);assert.deepEqual(reset.artist.templateImages,{});assert.deepEqual(reset.images,{});
+    console.log(JSON.stringify({status:'PASS',checks:['factory defaults: no edits and zero speed/rpm','factory PNGs loaded','9 component thumbnails/descriptions/filenames','component gallery selection and guides','image upload','color-only guards','project roundtrip','malformed project preserves current work','private template folder and project roundtrip','PNG/ZIP exports','factory comparison and reset','invalid HEX blocks export','SVG rejected','responsive layout','no API/external requests'],artifacts:temp}));
   }finally{if(page)page.removeAllListeners('dialog');await browser.close();await new Promise(r=>server.close(r));}
 }
 main().catch(e=>{console.error(e);process.exitCode=1;});

@@ -97,13 +97,16 @@ class Handler(BaseHTTPRequestHandler):
    self.allowed();url=urllib.parse.urlsplit(self.path);p=urllib.parse.unquote(url.path)
    if p in ('/artist','/artist/') or p.startswith('/artist/'):
     name='index.html' if p in ('/artist','/artist/') else p[len('/artist/'):]
-    core.require(name in ('index.html','artist.mjs','canvas.mjs','model.mjs','style.css'),'ไม่พบไฟล์ Artist Mode')
+    asset=pathlib.PurePosixPath(name)
+    visual=name.startswith('factory/') and name.endswith('.png') and '..' not in asset.parts and '\\' not in name
+    core.require(name in ('index.html','artist.mjs','canvas.mjs','model.mjs','factory.mjs','style.css') or visual,'ไม่พบไฟล์ Artist Mode')
     if p=='/artist':
      self.send_response(302);self.send_header('Location','/artist/');self.end_headers();return
     folder=core.BASE/'artist'
     if not folder.is_dir():folder=core.BASE/'docs/artist'
-    content='text/javascript; charset=utf-8' if name.endswith('.mjs') else ('text/css; charset=utf-8' if name.endswith('.css') else 'text/html; charset=utf-8')
-    return self.send((folder/name).read_bytes(),content=content)
+    content='image/png' if visual else ('text/javascript; charset=utf-8' if name.endswith('.mjs') else ('text/css; charset=utf-8' if name.endswith('.css') else 'text/html; charset=utf-8'))
+    target=(folder/name).resolve();core.require(target.is_relative_to(folder.resolve()) and target.is_file(),'ไม่พบไฟล์ Artist Mode')
+    return self.send(target.read_bytes(),content=content)
    if p in ('/','/index.html'):return self.send((core.BASE/'web/index.html').read_bytes(),content='text/html; charset=utf-8')
    if p in ('/app.js','/style.css'):return self.send((core.BASE/'web'/p[1:]).read_bytes(),content='text/javascript' if p.endswith('.js') else 'text/css')
    if p=='/api/state':

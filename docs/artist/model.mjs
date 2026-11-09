@@ -1,4 +1,5 @@
 /** Shared project contract and image math. No network, device or firmware code. */
+import {FACTORY_ASSETS} from './factory.mjs';
 const sport = n => `/res_sport/SPORT_NIGHT_${n}.png`;
 const common = n => `/res/Other/dark/sport/${n}.png`;
 export const PARTS = {
@@ -15,10 +16,22 @@ export const PARTS = {
 export const BACKGROUND_PATHS = Object.values(PARTS).filter(p=>!p.colorOnly).flatMap(p=>p.paths);
 export const SIZES = Object.fromEntries(Object.values(PARTS).flatMap(p=>p.paths.map(n=>[n,[...p.size]])));
 SIZES[common('bg0_1')]=[468,518];
+for(const [path,asset]of Object.entries(FACTORY_ASSETS))if(Object.hasOwn(SIZES,path))SIZES[path]=[...asset.size];
+export const PART_INFO={
+  wallpaper:{description:'ภาพพื้นหลังขนาดเต็มจอ ลายถนนอยู่ด้านล่าง ซ้อนหลังเกจและแผงข้อมูล ไม่รวมตัวเลข',region:'ทั้งจอ · 1024×600',tip:'วาดพื้นหลังได้ทั้งภาพ แต่อย่าวาดตัวเลขหรือไฟเตือนติดลงไป'},
+  ring:{description:'พื้นวงกลมสีน้ำเงินกลางจอ รวมพื้นผิวและแสงของเกจ ไม่รวมขีดรอบและเลขรอบ',region:'วงกลมกลางจอ รอบตัวเลขความเร็ว',tip:'มี bg0 และ bg0_1 คนละขนาด รักษาขอบโปร่งและขนาด canvas'},
+  left:{description:'พื้นแผงสีน้ำเงินด้านซ้าย รองข้อมูลลมยาง อุณหภูมิยางและแรงดันไฟ ไม่ใช่ตัวข้อมูล',region:'ซ้ายจอ · ใต้ข้อมูลยางและแบตเตอรี่',tip:'ลดลายบริเวณตัวหนังสือเพื่อให้อ่านค่าชัด'},
+  right:{description:'พื้นแผงสีน้ำเงินด้านขวา รองมาตรวัดน้ำมันและอุณหภูมิ ไม่รวมแท่งระดับ',region:'ขวาจอ · หลังแถบน้ำมันและอุณหภูมิ',tip:'แท่งระดับ/ตัว F E H C เป็นอีกชั้นหนึ่ง'},
+  gear:{description:'พื้นกรอบใต้เกจสำหรับอักษร S/ตำแหน่งเกียร์ ไม่ใช่ตัวอักษร S',region:'กึ่งกลางด้านล่างของวงเกจ',tip:'รักษาความโปร่งและขนาด 140×103'},
+  glow:{description:'แถบแสงสีน้ำเงินรองส่วนล่างของวงเกจ เป็นภาพซ้อนโปร่ง ไม่ใช่เกจทั้งวง',region:'แนวนอนใต้ความเร็ว เหนือช่องเกียร์',tip:'ดูบนพื้นลายตารางเพื่อเห็นพื้นที่โปร่งของไฟล์'},
+  speed:{description:'ภาพตัวเลขความเร็ว 0–9, หน่วย km/h/mph และเส้นตกแต่งใต้ตัวเลข',region:'เลขขนาดใหญ่กึ่งกลางวงเกจ',tip:'โหมดนี้ปรับสีเท่านั้น คงรูปทรงและ alpha ของ glyph เดิม'},
+  rpm_numbers:{description:'ภาพตัวเลขรอบเครื่อง 0–7 ทั้ง BIG/SMALL และหน่วย rpm ตัวเลข 8–10 สีแดงเป็นชั้นคงเดิม',region:'ตัวเลขเล็กรอบวงเกจ',tip:'BIG กับ SMALL เป็นภาพคนละขนาด ไม่ใช่ไฟล์เดียวที่ย่อในเว็บ'},
+  rpm_accent:{description:'เส้นกรอบ/ขีดสเกล/แถบรอบปกติและ pointer ที่ใช้ซ้อนบนพื้นวงเกจ',region:'เส้นและขีดรอบเกจกลางจอ',tip:'เปลี่ยนเฉพาะสีที่อนุญาต พิกเซลเขตรอบสูงสีแดงคงเดิม'},
+};
 export const LIMITS = {file:8*1024*1024,project:24*1024*1024,total:16*1024*1024,pixels:16_000_000,images:48};
 export const PALETTE = ['#ffffff','#e5e7eb','#afafaf','#666666','#333333','#000000','#ff4d4d','#ff8a4c','#ffc247','#ffe66d','#d4fa42','#8bea4f','#34d399','#00cfb7','#38e8ed','#50baff','#3678ff','#6d62ff','#a27bff','#dc6aff','#ff66b8','#ff9fbe','#bc8460','#a8c7a1'];
 export function require(ok,message){if(!ok)throw new Error(message);}
-export function defaultConfig(){return {version:2,bootImage:'example-animation',parts:Object.fromEntries(Object.entries(PARTS).map(([k,p])=>[k,{enabled:false,mode:'tint',color:p.colorOnly?'#e5f3ff':'#afafaf',opacity:100,fit:'cover',colors:0,x:.5,y:.5}]))};}
+export function defaultConfig(){return {version:2,bootImage:'example-animation',parts:Object.fromEntries(Object.entries(PARTS).map(([k,p])=>[k,{enabled:false,mode:k==='wallpaper'?'image':'tint',color:p.colorOnly?'#e5f3ff':'#afafaf',opacity:100,fit:'cover',colors:0,x:.5,y:.5}]))};}
 function plain(o){return o!==null&&typeof o==='object'&&!Array.isArray(o);}
 export function normalizeConfig(input){
   require(plain(input)&&plain(input.parts),'โปรเจกต์ต้องมี parts');
