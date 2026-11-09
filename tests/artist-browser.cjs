@@ -38,9 +38,13 @@ async function main(){
     await page.locator('#project-file').setInputFiles({name:'project.json',mimeType:'application/json',buffer:designed});await ready();assert.deepEqual(JSON.parse(await download('#save-project')),parsed);
     const templateDir=path.join(temp,'templates');await fs.mkdir(path.join(templateDir,'res_sport'),{recursive:true});
     const panel=Buffer.from(await page.evaluate(()=>{const c=document.createElement('canvas');c.width=329;c.height=324;const x=c.getContext('2d');x.fillStyle='#7799bb';x.fillRect(20,20,150,180);return c.toDataURL().split(',')[1];}),'base64');
-    await fs.writeFile(path.join(templateDir,'res_sport/SPORT_NIGHT_BG_LEFT_3.png'),panel);await page.locator('#template-files').setInputFiles(templateDir);await ready();assert.match(await page.locator('#template-status').textContent(),/1 ชิ้น/);
+    await fs.writeFile(path.join(templateDir,'res_sport/SPORT_NIGHT_BG_LEFT_3.png'),panel);
+    const ringDir=path.join(templateDir,'res/Other/dark/sport');await fs.mkdir(ringDir,{recursive:true});
+    const ring=Buffer.from(await page.evaluate(()=>{const c=document.createElement('canvas');c.width=470;c.height=518;const x=c.getContext('2d');x.fillStyle='rgb(20,160,100)';x.fillRect(0,0,24,24);return c.toDataURL().split(',')[1];}),'base64');
+    await fs.writeFile(path.join(ringDir,'bg0.png'),ring);await page.locator('#template-files').setInputFiles(templateDir);await ready();assert.match(await page.locator('#template-status').textContent(),/2 ชิ้น/);
+    await page.waitForFunction(()=>{const p=document.querySelector('#dashboard').getContext('2d').getImageData(290,39,1,1).data;return p[0]===20&&p[1]===160&&p[2]===100;});
     await page.locator('[data-part="left"]').click();await page.locator('#color-mode').click();await page.locator('#hex').fill('#afafaf');await page.locator('#hex').dispatchEvent('input');await page.locator('#opacity').fill('45');await page.locator('#opacity').dispatchEvent('input');
-    const withTemplates=await download('#save-project');assert.equal(Object.keys(JSON.parse(withTemplates).artist.templateImages).length,1);await fs.writeFile(path.join(temp,'project-with-templates.json'),withTemplates);
+    const withTemplates=await download('#save-project');assert.equal(Object.keys(JSON.parse(withTemplates).artist.templateImages).length,2);await fs.writeFile(path.join(temp,'project-with-templates.json'),withTemplates);
     await page.locator('#project-file').setInputFiles({name:'project.json',mimeType:'application/json',buffer:withTemplates});await ready();assert.deepEqual(JSON.parse(await download('#save-project')),JSON.parse(withTemplates));
     const designZip=await download('#export-layers');await fs.writeFile(path.join(temp,'design.zip'),designZip);assert.equal(designZip.readUInt32LE(0),0x04034b50);
     const sampleZip=await download('#sample-templates');await fs.writeFile(path.join(temp,'templates.zip'),sampleZip);

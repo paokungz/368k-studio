@@ -57,7 +57,7 @@ export function renderer(target){
   }
   function render(next){
     state=next;const x=target.getContext('2d');x.clearRect(0,0,1024,600);x.fillStyle='#08121a';x.fillRect(0,0,1024,600);
-    for(const key of ['wallpaper','left','right','glow','gear','ring']){const p=PARTS[key];x.drawImage(get(p.paths.at(-1),next.original),...p.at);}
+    for(const key of ['wallpaper','left','right','glow','gear','ring']){const p=PARTS[key];x.drawImage(get(key==='wallpaper'?p.paths.at(-1):p.paths[0],next.original),...p.at);}
     for(const name of ['deco','kedu','pointer'])x.drawImage(get(`/res/Other/dark/sport/${name}.png`,next.original),289,38);
     const center=[524,297];for(let n=0;n<=10;n++){const a=(130+n*28)*Math.PI/180,px=center[0]+Math.cos(a)*143,py=center[1]+Math.sin(a)*143;if(n<8)x.drawImage(get(`/res_sport/SPORT_NIGHT_RPM_NUM_BIG_${n}.png`,next.original),px-17,py-14);else label(x,String(n),px,py+10,24,'#f17845','center');}
     if(next.rpm>0){x.save();x.strokeStyle=next.original||!next.config.parts.rpm_accent.enabled?'#b9def2':next.config.parts.rpm_accent.color;x.lineWidth=9;x.beginPath();x.arc(...center,195,Math.PI*.72,Math.PI*.72+next.rpm/7000*Math.PI*1.12);x.stroke();x.restore();}
