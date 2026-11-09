@@ -1,5 +1,9 @@
 # 368K Studio
 
+**ใหม่: [เปิด Artist Mode บนเว็บ](https://paokungz.github.io/368k-studio/)** — นักวาดนำเข้า PNG ปรับสี/ครอป/ความโปร่ง พรีวิวและส่งโปรเจกต์กลับมาเปิดใน Studio ได้ โดยไม่ต้องมี firmware หรือเชื่อมรถ [คู่มือนักวาด](docs/ARTIST_MODE.md)
+
+![Artist Mode](docs/artist-preview.png)
+
 โปรแกรม Windows สำหรับออกแบบธีม **Sport แบบกลางคืนของ ZONTES 368K** บนคอม แปลงรูป ตรวจไฟล์ Launcher แล้วติดตั้งหรือคืนค่าผ่าน Wi-Fi รถ มี UI ภาษาไทยและตัวอย่างหน้าปัด 1024 × 600
 
 **รองรับเฉพาะ firmware ที่ SHA-256 ตรงกับชุดที่ระบุด้านล่าง** ชื่อรุ่น 368K เหมือนกันไม่ได้หมายความว่า firmware ตรงกัน โปรแกรมเป็นงานทดลองของผู้ใช้ ไม่ได้เป็นผลิตภัณฑ์หรือเครื่องมืออย่างเป็นทางการของผู้ผลิตรถ
@@ -159,9 +163,9 @@ $env:STUDIO_PRIVATE_DIR = 'D:\MyVehicleBackup\studio-private'
 powershell -ExecutionPolicy Bypass -File .\build.ps1
 ```
 
-ได้ `dist\368K Studio Public.exe` ซึ่งรวมเฉพาะโค้ด web UI และภาพตัวอย่างที่สร้างใหม่ ต้องเตรียมชุดส่วนตัวบนเครื่องปลายทางก่อนใช้งานจริง
+ได้ `dist\368K Studio Public.exe` ซึ่งรวมโค้ด web UI, Artist Mode และภาพตัวอย่างที่สร้างใหม่ Artist Mode ใช้ได้ทันที ส่วนการสร้าง Launcher/boot และติดตั้งต้องเตรียมชุดส่วนตัวบนเครื่องปลายทางก่อน
 
-ชุด public tests 10 ชุดรันได้โดยไม่มี firmware ส่วน integration tests 12 ชุดใช้สำเนาส่วนตัวและ mock Telnet ไม่เชื่อมรถ ถ้าไม่มีสำเนาต้นฉบับจะรายงาน `skipped` อย่างชัดเจน การผ่าน tests ไม่เท่ากับผ่านการติดตั้งบนรถทุกเวอร์ชัน
+ชุด public tests 11 ชุดรันได้โดยไม่มี firmware ส่วน integration tests 12 ชุดใช้สำเนาส่วนตัวและ mock Telnet ไม่เชื่อมรถ ถ้าไม่มีสำเนาต้นฉบับจะรายงาน `skipped` อย่างชัดเจน Artist Mode มี model tests และ browser tests เพิ่มเติมตาม [คู่มือ](docs/ARTIST_MODE.md) การผ่าน tests ไม่เท่ากับผ่านการติดตั้งบนรถทุกเวอร์ชัน
 
 GitHub Actions ทดสอบและ build EXE บน Windows ในแต่ละ push ดาวน์โหลด build ได้จากแท็บ **Actions → run ที่สำเร็จ → Artifacts** (ต้อง login GitHub) ชุด build นี้ไม่มี firmware/ภาพจากรถแนบมา
 

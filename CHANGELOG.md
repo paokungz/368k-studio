@@ -1,5 +1,14 @@
 # Changelog
 
+## Artist Mode — 2026-11-09
+
+- เว็บ static สำหรับนักวาด ใช้ภาพตัวอย่างวาดใหม่และประมวลผลภาพใน browser โดยไม่มี device API
+- เลือก 9 กลุ่ม ปรับรูป/ครอป/สี HEX/RGB/alpha และดูค่ามาตรวัดตัวอย่าง
+- โหลดโฟลเดอร์ template ส่วนตัวตามชื่อ/ขนาด และแนบ template ในโปรเจกต์เพื่อเปิดกลับได้
+- เปิด/บันทึก JSON contract เดียวกับ Studio ส่งออก PNG พื้น 10 ชิ้น, preview และ palette ใน ZIP
+- เพิ่มทางเข้า Artist Mode ใน Studio และ EXE, คู่มือ, model/browser tests และ GitHub Pages workflow
+- กรณีนำเข้าโปรเจกต์/ภาพผิดพลาดคงงานเดิม จำกัดขนาดไฟล์และปฏิเสธ SVG/remote image URLs
+
 ## 1.1-public
 
 - เผยแพร่ source โดยแยก firmware/ภาพ/ฟอนต์ของรถออกจาก Git และ EXE

@@ -58,4 +58,25 @@ class PublicTests(unittest.TestCase):
         for name,kind in [('example-wallpaper.png','PNG'),('example-animation.gif','GIF')]:
             with Image.open(core.BASE/'assets'/name) as im:
                 self.assertEqual(im.format,kind);self.assertEqual(im.size,(1024,600));im.load()
+
+    def test_artist_routes_without_firmware_and_device_still_guarded(self):
+        import threading,urllib.request,urllib.error
+        from http.server import ThreadingHTTPServer
+        import device
+        with tempfile.TemporaryDirectory() as directory,mock.patch.object(core,'PRIVATE',pathlib.Path(directory)/'private'):
+            core.stock.cache_clear();root=pathlib.Path(directory)
+            app=server.Studio(root,root/'exports');http=ThreadingHTTPServer(('127.0.0.1',0),server.Handler);http.studio=app;app.port=http.server_port
+            thread=threading.Thread(target=http.serve_forever,daemon=True);thread.start();base='http://127.0.0.1:'+str(app.port)
+            try:
+                with urllib.request.urlopen(base+'/artist') as response:
+                    self.assertTrue(response.url.endswith('/artist/'));self.assertIn(b'Artist Mode',response.read())
+                for name in ('artist.mjs','canvas.mjs','model.mjs','style.css'):
+                    with urllib.request.urlopen(base+'/artist/'+name) as response:self.assertEqual(response.status,200)
+                request=urllib.request.Request(base+'/api/device/install',data=b'{"parked":true}',headers={'X-Studio-Token':app.token,'Content-Type':'application/json'})
+                with mock.patch.object(device,'Session',side_effect=AssertionError('No device connection allowed')),self.assertLogs(level='ERROR'):
+                    with self.assertRaises(urllib.error.HTTPError) as error:urllib.request.urlopen(request)
+                self.assertEqual(error.exception.code,400)
+                with self.assertRaises(urllib.error.HTTPError) as error:urllib.request.urlopen(base+'/artist/../server.py')
+                self.assertEqual(error.exception.code,400)
+            finally:http.shutdown();http.server_close();thread.join(timeout=2);core.stock.cache_clear()
 if __name__=='__main__':unittest.main()

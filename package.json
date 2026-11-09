@@ -1,0 +1,10 @@
+{
+  "name": "368k-studio-artist",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "test": "node --test tests/artist-model.test.mjs",
+    "test:browser": "node tests/artist-browser.cjs"
+  },
+  "devDependencies": {"playwright": "1.62.1"}
+}

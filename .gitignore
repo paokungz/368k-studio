@@ -26,3 +26,6 @@ device-*.json
 *.ttf
 *.otf
 *.tmp
+node_modules/
+test-results/
+playwright-report/
