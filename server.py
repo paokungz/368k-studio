@@ -43,19 +43,27 @@ class Studio:
   if image_id=='example-animation':return core.asset_file('example-animation.gif').read_bytes()
   core.require(isinstance(image_id,str) and re.fullmatch('[0-9a-f]{32}',image_id),'รหัสภาพไม่ถูกต้อง')
   path=self.data/'images'/image_id;core.require(path.is_file(),'ไม่พบภาพ เลือกไฟล์ใหม่อีกครั้ง');return path.read_bytes()
- def job(self,kind,work):
+ def job(self,kind,work,extra=None):
   key=uuid.uuid4().hex
-  obj={'id':key,'kind':kind,'status':'running','message':'กำลังเริ่ม','time':now()};self.jobs[key]=obj
+  obj={'id':key,'kind':kind,'status':'running','message':'กำลังเริ่ม','time':now()}
+  if extra:obj.update(extra)
+  with self.lock:
+   self.jobs[key]=obj;snapshot=obj.copy()
   self.flush_jobs()
-  def progress(message):obj['message']=message;self.flush_jobs()
+  def progress(message):
+   with self.lock:obj['message']=message
+   self.flush_jobs()
   def run():
-   try:obj['result']=work(key,progress);obj.update(status='done',message='เสร็จแล้ว')
+   try:
+    result=work(key,progress)
+    with self.lock:obj.update(result=result,status='done',message='เสร็จแล้ว')
    except Exception as e:
-    logging.exception('job failed');obj.update(status='error',message=str(e),details=getattr(e,'details',None))
+    logging.exception('job failed')
+    with self.lock:obj.update(status='error',message=str(e),details=getattr(e,'details',None))
    finally:
     try:self.flush_jobs()
     except Exception:logging.exception('Job persistence failed')
-  threading.Thread(target=run,daemon=True).start();return obj.copy()
+  threading.Thread(target=run,daemon=True).start();return snapshot
  def build(self,config,kind):
   core.require(kind in ('theme','boot'),'ชนิดงานไม่รองรับ')
   core.validate_config(config)
@@ -71,7 +79,7 @@ class Studio:
     for f in folder.rglob('*'):
      if f.is_file():z.write(f,str(f.relative_to(folder)))
    return {'folder':str(folder),'zip':str(archive),'manifest':result,'download':'/download/'+key}
-  obj=self.job('build-'+kind,work);self.jobs[obj['id']]['config']=config;self.flush_jobs();return obj
+  return self.job('build-'+kind,work,{'config':config})
 
 class Handler(BaseHTTPRequestHandler):
  server_version='368KStudio/1.1'
@@ -113,12 +121,16 @@ class Handler(BaseHTTPRequestHandler):
     core.require(self.headers.get('X-Studio-Token')==self.app.token,'สิทธิ์ session ไม่ถูกต้อง')
     config=self.app.project()
     ready,setup_error=core.readiness()
-    return self.json({'parts':core.PARTS,'exports':str(self.app.exports),'config':config,'version':'1.1-public','ready':ready,'setupError':setup_error,'bootReady':(core.PRIVATE/'data/boot.original.img').is_file(),'deviceFeatures':ready,'recentJobs':list(self.app.jobs.values())[-30:],'warning':self.app.warning})
+    with self.app.lock:recent=[dict(j) for j in list(self.app.jobs.values())[-30:]]
+    return self.json({'parts':core.PARTS,'exports':str(self.app.exports),'config':config,'version':'1.1-public','ready':ready,'setupError':setup_error,'bootReady':(core.PRIVATE/'data/boot.original.img').is_file(),'deviceFeatures':ready,'recentJobs':recent,'warning':self.app.warning})
    if p.startswith('/assets/'):
     f=core.asset_file(p[len('/assets/'):])
     return self.send(f.read_bytes(),content=mimetypes.guess_type(str(f))[0] or 'application/octet-stream')
    if p.startswith('/image/'):
-    b=self.app.image(p.rsplit('/',1)[1]);return self.send(b,content='image/'+{'JPEG':'jpeg'}.get(core.Image.open(io.BytesIO(b)).format,core.Image.open(io.BytesIO(b)).format.lower()))
+    b=self.app.image(p.rsplit('/',1)[1])
+    with core.Image.open(io.BytesIO(b)) as im:fmt=im.format
+    content='image/'+( 'jpeg' if fmt=='JPEG' else fmt.lower() ) if fmt else 'application/octet-stream'
+    return self.send(b,content=content)
    if p.startswith('/download/'):
     key=p.rsplit('/',1)[1];core.require(re.fullmatch('[a-f0-9]{32}',key),'รหัสผลลัพธ์ไม่ถูกต้อง')
     archive=self.app.exports/('project-'+key+'.zip');core.require(archive.is_file(),'ยังไม่มีไฟล์ดาวน์โหลด')
@@ -153,11 +165,13 @@ class Handler(BaseHTTPRequestHandler):
     core.validate_config(data['config']);write_json(self.app.data/'project.json',data['config']);return self.json({'saved':True})
    if p=='/api/build':return self.json(self.app.build(data['config'],data.get('kind','theme')))
    if p=='/api/job':
-    obj=self.app.jobs.get(data.get('id'));core.require(obj is not None,'ไม่พบงาน');return self.json(obj.copy())
+    with self.app.lock:obj=self.app.jobs.get(data.get('id'));core.require(obj is not None,'ไม่พบงาน');snapshot=obj.copy()
+    return self.json(snapshot)
    if p=='/api/open-folder':
     os.startfile(str(self.app.exports));return self.json({'opened':True})
    if p=='/api/quit':
-    core.require(not any(j['status']=='running' for j in self.app.jobs.values()),'รอให้งานที่กำลังทำเสร็จก่อนปิดโปรแกรม')
+    with self.app.lock:running=any(j['status']=='running' for j in self.app.jobs.values())
+    core.require(not running,'รอให้งานที่กำลังทำเสร็จก่อนปิดโปรแกรม')
     self.json({'closed':True});threading.Thread(target=self.server.shutdown,daemon=True).start();return
    if p=='/api/device/check':
     from device import check

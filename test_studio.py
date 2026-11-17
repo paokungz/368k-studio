@@ -113,7 +113,7 @@ class EngineTests(unittest.TestCase):
     if cmd=='pidof Launcher':return '1341'
     if cmd=='cat /proc/uptime':return '500.00 499.99'
     if cmd=='uname -m':return 'aarch64'
-    if cmd.startswith('df -k'):return '1200000'
+    if cmd.startswith(('df -k','df -Pk')):return '1200000'
     if cmd.startswith('if test -f'):
      if 'status.txt' in cmd:return 'INSTALLED_VERIFIED'
      if cmd.startswith('if test -f '+device.BASE+'/Launcher.stock'):return 'MISSING' if cls.missing_stock else 'FOUND'
@@ -186,5 +186,9 @@ class EngineTests(unittest.TestCase):
      return super().run(cmd,timeout)
    with mock.patch.object(device,'Session',StillRunning):
     pending=device.reconcile(self.root);self.assertEqual(pending['outcome'],'REMOTE_JOB_RUNNING');self.assertFalse(pending['can_restore']);self.assertFalse(pending['can_install'])
+   class BootChanged(FakeSession):
+    def hash(self,path):return 'c'*64 if path=='/dev/mmcblk0p3' else super().hash(path)
+   with mock.patch.object(device,'Session',BootChanged):
+    mismatch=device.reconcile(self.root);self.assertEqual(mismatch['outcome'],'BOOT_HASH_MISMATCH');self.assertFalse(mismatch['can_restore']);self.assertFalse(mismatch['can_install'])
 
 if __name__=='__main__':unittest.main(verbosity=2)

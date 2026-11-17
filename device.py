@@ -169,19 +169,22 @@ def reconcile(exports,progress=lambda m:None):
     busy=remote+'/install.sh' in command
   locked_commit=s.run(f'if test -d {BASE}/commit.lock; then echo LOCKED; else echo FREE; fi')=='LOCKED'
   can_clear=abandoned_commit(s)[0] if locked_commit else False
+  boot_mismatch=False
   if busy:outcome='REMOTE_JOB_RUNNING';message='ฝั่งรถยังทำงานอยู่ คงระบบไฟและรอ แล้วตรวจผลอีกครั้ง'
   elif latest and latest.get('expected_sha256')==result['disk_sha256']:
    boot=s.hash('/dev/mmcblk0p3')
-   core.require(not latest.get('boot_before') or latest['boot_before']==boot,'แฮชบูตไม่ตรงบันทึก ต้องตรวจเพิ่มเติมก่อนเขียน')
-   outcome='VERIFIED_ON_RECONNECT';message='ตรวจไฟล์บนรถแล้ว ตรงกับไฟล์ที่ตั้งใจเขียน ไม่ต้องติดตั้งซ้ำ'
+   if latest.get('boot_before') and latest['boot_before']!=boot:
+    boot_mismatch=True;outcome='BOOT_HASH_MISMATCH';message='แฮชบูตไม่ตรงบันทึก ต้องตรวจเพิ่มเติมก่อนเขียน'
+   else:
+    outcome='VERIFIED_ON_RECONNECT';message='ตรวจไฟล์บนรถแล้ว ตรงกับไฟล์ที่ตั้งใจเขียน ไม่ต้องติดตั้งซ้ำ'
   elif latest and latest.get('before',{}).get('disk_sha256')==result['disk_sha256']:
    outcome='PREVIOUS_FILE_PRESENT';message='รถยังใช้ไฟล์ก่อนทำงาน หรือได้คืนไฟล์เดิมแล้ว แก้สาเหตุและตรวจสถานะก่อนลองใหม่'
   elif result['disk_sha256'] in known:outcome='KNOWN_FILE_PRESENT';message='พบ Launcher ชุดที่ตรวจแล้วบนรถ'
   else:outcome='NEEDS_RESTORE';message='ไฟล์บนดิสก์ไม่ตรงชุดที่ตรวจไว้ ถ้า process เดิมยังเป็นชุดที่รองรับ สามารถใช้ปุ่มคืนต้นฉบับได้'
   if locked_commit:message+=' · มีล็อกการเขียนค้าง '+('ปลดล็อกได้เมื่อยืนยันรถจอด' if can_clear else 'ยังยืนยันไม่ได้ว่าเจ้าของล็อกหยุดแล้ว')
   result.update(outcome=outcome,message=message,remote_status=state,commit_locked=locked_commit,can_clear_lock=can_clear,
-                can_install=not busy and not locked_commit and result['disk_sha256']==result['running_sha256'] and result['disk_sha256'] in known,
-                can_restore=not busy and not locked_commit and result['running_sha256'] in known)
+                can_install=not busy and not locked_commit and not boot_mismatch and result['disk_sha256']==result['running_sha256'] and result['disk_sha256'] in known,
+                can_restore=not busy and not locked_commit and not boot_mismatch and result['running_sha256'] in known)
   if latest and not busy:
    latest.update(status=outcome,reconciled=result);save_report(exports,key,latest)
   return result
@@ -237,7 +240,7 @@ def install(folder,exports,key,progress=lambda m:None):
   core.require(before['disk_sha256']==before['running_sha256'],'ไฟล์บนดิสก์กับ process ต่างกัน ตรวจผลล่าสุดก่อนติดตั้งซ้ำ ถ้าไฟล์ไม่ตรงชุดที่ตรวจไว้ให้คืนต้นฉบับก่อนเปิดใหม่')
   core.require(before['disk_sha256'] in accepted_hashes(exports,before['disk_sha256']),'Launcher รถไม่ตรงกับต้นฉบับหรือชุดที่รองรับ')
   core.require('aarch64' in s.run('uname -m'),'สถาปัตยกรรมรถไม่ตรงรุ่น')
-  free=int(s.run("df -k /usr/bin | tail -n 1 | awk '{print $4}'"));core.require(free>400000,'พื้นที่ว่างบนรถไม่พอสำหรับสำรอง')
+  free=int(s.run("df -Pk /usr/bin | tail -n 1 | awk '{print $4}'"));core.require(free>400000,'พื้นที่ว่างบนรถไม่พอสำหรับสำรอง')
   boot_before=s.hash('/dev/mmcblk0p3');report['boot_before']=boot_before;save_report(exports,key,report)
   progress('สำรอง Launcher ปัจจุบันและตรวจต้นฉบับ')
   s.run(f'mkdir -p {remote} && cp -p /usr/bin/Launcher {remote}/Launcher.previous && sync',120)
